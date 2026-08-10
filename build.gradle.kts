@@ -1,7 +1,6 @@
 plugins {
     `java-library`
-    `maven-publish`
-    signing
+    id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
 group = "io.github.anjeongkyun"
@@ -9,8 +8,6 @@ version = "0.1.0"
 
 java {
     toolchain { languageVersion.set(JavaLanguageVersion.of(17)) }
-    withSourcesJar()
-    withJavadocJar()
 }
 
 repositories { mavenCentral() }
@@ -33,41 +30,36 @@ tasks.withType<Test>().configureEach {
     jvmArgs("--add-opens=java.base/java.nio=ALL-UNNAMED")
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            pom {
-                name.set("testcontainers-fakesnow")
-                description.set("Testcontainers module for fakesnow, a local Snowflake fake reachable over JDBC.")
-                url.set("https://github.com/anjeongkyun/testcontainers-fakesnow")
-                licenses {
-                    license {
-                        name.set("Apache License 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("anjeongkyun")
-                        name.set("Jeongkyun An")
-                        url.set("https://github.com/anjeongkyun")
-                    }
-                }
-                scm {
-                    url.set("https://github.com/anjeongkyun/testcontainers-fakesnow")
-                    connection.set("scm:git:https://github.com/anjeongkyun/testcontainers-fakesnow.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/anjeongkyun/testcontainers-fakesnow.git")
-                }
+mavenPublishing {
+    publishToMavenCentral()
+    // Only signs when signing credentials are configured, so local builds don't need a key.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
+    coordinates(group.toString(), "testcontainers-fakesnow", version.toString())
+
+    pom {
+        name.set("testcontainers-fakesnow")
+        description.set("Testcontainers module for fakesnow, a local Snowflake fake reachable over JDBC.")
+        inceptionYear.set("2026")
+        url.set("https://github.com/anjeongkyun/testcontainers-fakesnow")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
-    }
-}
-
-signing {
-    // Only sign when credentials are present, so local builds don't need a GPG key.
-    isRequired = providers.gradleProperty("signing.keyId").isPresent
-    if (isRequired) {
-        sign(publishing.publications["mavenJava"])
+        developers {
+            developer {
+                id.set("anjeongkyun")
+                name.set("Jeongkyun An")
+                url.set("https://github.com/anjeongkyun")
+            }
+        }
+        scm {
+            url.set("https://github.com/anjeongkyun/testcontainers-fakesnow")
+            connection.set("scm:git:https://github.com/anjeongkyun/testcontainers-fakesnow.git")
+            developerConnection.set("scm:git:ssh://git@github.com/anjeongkyun/testcontainers-fakesnow.git")
+        }
     }
 }
