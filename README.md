@@ -93,9 +93,24 @@ new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.12")
 
 ## Compatibility
 
-`executeUpdate` — and therefore `JdbcTemplate.update()`, Hibernate and Flyway — needs fakesnow **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
+`executeUpdate` — and therefore `JdbcTemplate.update()` — needs fakesnow **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
 
-Everything else is fakesnow's own coverage; see its [implementation coverage](https://github.com/tekumara/fakesnow#implementation-coverage) and caveats. Notably fakesnow accepts a more liberal dialect than real Snowflake, so it can pass SQL that Snowflake would reject.
+Measured against fakesnow 0.11.12 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
+
+| | |
+|---|---|
+| `MERGE`, recursive CTEs, `PIVOT`, `QUALIFY` (incl. select aliases) | works |
+| `DATEADD`, `DATEDIFF`, `DATE_TRUNC` | works |
+| `VARIANT` path access, `LATERAL FLATTEN`, `OBJECT_CONSTRUCT`, `ARRAY_AGG` | works |
+| `LISTAGG`, `IFF`, `NVL`, `SPLIT_PART`, `REGEXP_*`, `TRY_CAST`, `TRY_TO_NUMBER` | works |
+| `information_schema`, transaction rollback, 1000-row results | works |
+| **batch insert** (`executeBatch`) | **fails** — [fakesnow#371](https://github.com/tekumara/fakesnow/issues/371) |
+| **`TIMESTAMP_TZ` with an offset literal** | **fails** — [fakesnow#372](https://github.com/tekumara/fakesnow/issues/372) |
+| **`DatabaseMetaData.getPrimaryKeys`** | **fails** — [fakesnow#373](https://github.com/tekumara/fakesnow/issues/373) |
+
+Savepoints and `getGeneratedKeys` also fail, but that is **not** a fakesnow gap — the Snowflake driver reports `supportsSavepoints() == false` and `supportsGetGeneratedKeys() == false`, so they don't work against real Snowflake either. Hibernate's nested transactions (which use savepoints) are unavailable on Snowflake generally.
+
+Beyond that, see fakesnow's own [implementation coverage](https://github.com/tekumara/fakesnow#implementation-coverage). Note it accepts a more liberal dialect than real Snowflake, so it can pass SQL that Snowflake would reject.
 
 ## License
 
