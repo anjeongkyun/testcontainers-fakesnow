@@ -31,14 +31,16 @@ Put these in `~/.gradle/gradle.properties` (never in this repository):
 ```properties
 mavenCentralUsername=<user token username>
 mavenCentralPassword=<user token password>
-
-signingInMemoryKey=<contents of the armored private key, newlines stripped>
 signingInMemoryKeyPassword=<key passphrase>
 ```
 
-For `signingInMemoryKey`, remove the `-----BEGIN/END PGP PRIVATE KEY BLOCK-----` lines and join the rest into one line.
+The signing key itself does not go here. It is an ASCII-armored block spanning many lines, and Java properties files can't hold that — stripping the newlines produces `Could not read PGP secret key`. Pass it as an environment variable at release time instead:
 
-Signing is skipped when `signingInMemoryKey` is absent, so local builds work without a key.
+```shell
+export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --armor --export-secret-keys <KEY_ID>)"
+```
+
+Signing is skipped when no key is configured, so ordinary builds work without one.
 
 ## Release
 
@@ -53,13 +55,17 @@ ls ~/.m2/repository/io/github/anjeongkyun/testcontainers-fakesnow/<version>/
 
    Expect the jar, `-sources.jar`, `-javadoc.jar` and `.pom`. Central rejects a release missing any of them.
 
-3. Publish:
+3. Publish, with the signing key in the environment:
 
 ```shell
+export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --armor --export-secret-keys <KEY_ID>)"
+
 ./gradlew publishToMavenCentral            # uploads, then release manually in the portal
 # or
 ./gradlew publishAndReleaseToMavenCentral  # uploads and releases in one step
 ```
+
+Confirm signing works first — `publishToMavenLocal` should produce a `.asc` next to every artifact.
 
 4. Tag and push:
 
