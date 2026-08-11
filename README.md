@@ -23,7 +23,7 @@ class OrdersRepositoryTest {
 
 ## Why not just substitute Postgres or H2
 
-Because the moment your SQL uses anything Snowflake-specific — `VARIANT`, `LATERAL FLATTEN`, `QUALIFY`, `MERGE INTO`, Snowflake's date semantics — a substitute database stops telling you the truth. Tests pass locally and the same SQL behaves differently in production.
+Because the moment your SQL uses anything Snowflake-specific (`VARIANT`, `LATERAL FLATTEN`, `QUALIFY`, `MERGE INTO`, Snowflake's date semantics), a substitute database stops telling you the truth. Tests pass locally and the same SQL behaves differently in production.
 
 The alternative that does keep fidelity is LocalStack's Snowflake emulator, which is commercially licensed. fakesnow is Apache-2.0.
 
@@ -45,7 +45,7 @@ testImplementation("net.snowflake:snowflake-jdbc:3.19.0")
 </dependency>
 ```
 
-The Snowflake driver is not a transitive dependency — bring the version you use in production.
+The Snowflake driver is not a transitive dependency, so bring the version you use in production.
 
 ## Required JVM flag
 
@@ -93,7 +93,7 @@ new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.12")
 
 ## Compatibility
 
-`executeUpdate` — and therefore `JdbcTemplate.update()` — needs fakesnow **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
+`executeUpdate`, and therefore `JdbcTemplate.update()`, needs fakesnow **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
 
 Measured against fakesnow 0.11.12 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
 
@@ -104,11 +104,11 @@ Measured against fakesnow 0.11.12 with snowflake-jdbc 3.19.0 (`CompatibilityProb
 | `VARIANT` path access, `LATERAL FLATTEN`, `OBJECT_CONSTRUCT`, `ARRAY_AGG` | works |
 | `LISTAGG`, `IFF`, `NVL`, `SPLIT_PART`, `REGEXP_*`, `TRY_CAST`, `TRY_TO_NUMBER` | works |
 | `information_schema`, transaction rollback, 1000-row results | works |
-| **batch insert** (`executeBatch`) | **fails** — [fakesnow#371](https://github.com/tekumara/fakesnow/issues/371) |
-| **`TIMESTAMP_TZ` with an offset literal** | **fails** — [fakesnow#372](https://github.com/tekumara/fakesnow/issues/372) |
-| **`DatabaseMetaData.getPrimaryKeys`** | **fails** — [fakesnow#373](https://github.com/tekumara/fakesnow/issues/373) |
+| **batch insert** (`executeBatch`) | **fails**, [fakesnow#371](https://github.com/tekumara/fakesnow/issues/371) |
+| **`TIMESTAMP_TZ` with an offset literal** | **fails**, [fakesnow#372](https://github.com/tekumara/fakesnow/issues/372) |
+| **`DatabaseMetaData.getPrimaryKeys`** | **fails**, [fakesnow#373](https://github.com/tekumara/fakesnow/issues/373) |
 
-Savepoints and `getGeneratedKeys` also fail, but that is **not** a fakesnow gap — the Snowflake driver reports `supportsSavepoints() == false` and `supportsGetGeneratedKeys() == false`, so they don't work against real Snowflake either. Hibernate's nested transactions (which use savepoints) are unavailable on Snowflake generally.
+Savepoints and `getGeneratedKeys` also fail, but that is **not** a fakesnow gap. The Snowflake driver reports `supportsSavepoints() == false` and `supportsGetGeneratedKeys() == false`, so they don't work against real Snowflake either. Hibernate's nested transactions (which use savepoints) are unavailable on Snowflake generally.
 
 Beyond that, see fakesnow's own [implementation coverage](https://github.com/tekumara/fakesnow#implementation-coverage). Note it accepts a more liberal dialect than real Snowflake, so it can pass SQL that Snowflake would reject.
 

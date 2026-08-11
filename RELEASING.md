@@ -12,7 +12,7 @@ Confirm under the account menu → *View Namespaces* that `io.github.anjeongkyun
 
 ### 2. User token
 
-Account menu → *Generate User Token*. This yields a username/password pair that is not your login — it's what the build uses.
+Account menu → *Generate User Token*. This yields a username/password pair that is not your login. It's what the build uses.
 
 ### 3. GPG key
 
@@ -34,7 +34,7 @@ mavenCentralPassword=<user token password>
 signingInMemoryKeyPassword=<key passphrase>
 ```
 
-The signing key itself does not go here. It is an ASCII-armored block spanning many lines, and Java properties files can't hold that — stripping the newlines produces `Could not read PGP secret key`. Pass it as an environment variable at release time instead:
+The signing key itself does not go here. It is an ASCII-armored block spanning many lines, which a Java properties file can't hold, and stripping the newlines produces `Could not read PGP secret key`. Pass it as an environment variable at release time instead:
 
 ```shell
 export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --armor --export-secret-keys <KEY_ID>)"
@@ -65,7 +65,7 @@ export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --armor --export-secret-keys
 ./gradlew publishAndReleaseToMavenCentral  # uploads and releases in one step
 ```
 
-Confirm signing works first — `publishToMavenLocal` should produce a `.asc` next to every artifact.
+Confirm signing works first: `publishToMavenLocal` should produce a `.asc` next to every artifact.
 
 4. Tag and push:
 
@@ -73,7 +73,7 @@ Confirm signing works first — `publishToMavenLocal` should produce a `.asc` ne
 git tag v<version> && git push origin v<version>
 ```
 
-Releases are immutable — a published version can't be changed or removed, only superseded.
+Releases are immutable. A published version can't be changed or removed, only superseded.
 
 ## After the first release
 
