@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Savepoint;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,23 @@ class CompatibilityProbe {
                 try (ResultSet rs = stmt.executeQuery("SELECT a, b, c FROM ts")) {
                     rs.next();
                     expect(rs.getString(3) != null, "tz column null");
+                }
+            });
+
+            // the literal case above uses an offset, which is a different code path to binding a
+            // value with setTimestamp. bind it too, since that is what an ORM does.
+            probe("setTimestamp / setDate binding", () -> {
+                stmt.execute("CREATE OR REPLACE TABLE tsb (a TIMESTAMP_NTZ, b TIMESTAMP_LTZ, c DATE)");
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO tsb VALUES (?, ?, ?)")) {
+                    ps.setTimestamp(1, Timestamp.valueOf("2026-01-01 10:00:00"));
+                    ps.setTimestamp(2, Timestamp.valueOf("2026-01-01 10:00:00"));
+                    ps.setDate(3, java.sql.Date.valueOf("2026-01-01"));
+                    ps.executeUpdate();
+                }
+                try (ResultSet rs = stmt.executeQuery("SELECT a, b, c FROM tsb")) {
+                    rs.next();
+                    expect(rs.getTimestamp(1) != null, "ntz column null");
+                    expect(rs.getTimestamp(2) != null, "ltz column null");
                 }
             });
 
