@@ -81,7 +81,7 @@ static void datasource(DynamicPropertyRegistry registry) {
 ## Configuration
 
 ```java
-new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.13")
+new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.14")
     .withDatabaseName("analytics")
     .withSchemaName("staging")
     .withAccount("acme")        // fakesnow accepts any account
@@ -93,12 +93,13 @@ new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.13")
 
 ## Compatibility
 
-Two things depend on the fakesnow version:
+A few things depend on the fakesnow version:
 
 - `executeUpdate`, and therefore `JdbcTemplate.update()`, needs **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
 - `setTimestamp`, and therefore any ORM writing a timestamp, needs **0.11.13 or newer**. Earlier versions returned a 500 for every timestamp column, because the driver binds `setTimestamp` as `TIMESTAMP_LTZ` and only `TIMESTAMP_NTZ` was handled ([fakesnow#374](https://github.com/tekumara/fakesnow/issues/374)).
+- `executeBatch`, and therefore `JdbcTemplate.batchUpdate()`, needs **0.11.14 or newer**. The driver asks for the statement metadata first and then sends the rows as an array binding, neither of which was handled ([fakesnow#371](https://github.com/tekumara/fakesnow/issues/371)). It failed with a 500 that the driver retried 6 times before giving up.
 
-Measured against fakesnow 0.11.13 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
+Measured against fakesnow 0.11.14 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
 
 | | |
 |---|---|
@@ -108,11 +109,11 @@ Measured against fakesnow 0.11.13 with snowflake-jdbc 3.19.0 (`CompatibilityProb
 | `LISTAGG`, `IFF`, `NVL`, `SPLIT_PART`, `REGEXP_*`, `TRY_CAST`, `TRY_TO_NUMBER` | works |
 | `information_schema`, transaction rollback, 1000-row results | works |
 | `setTimestamp`, `setDate` binding | works, needs 0.11.13 |
-| **batch insert** (`executeBatch`) | **fails**, [fakesnow#371](https://github.com/tekumara/fakesnow/issues/371) |
-| **`TIMESTAMP_TZ` with an offset literal** | **fails**, [fakesnow#372](https://github.com/tekumara/fakesnow/issues/372) |
-| **`DatabaseMetaData.getPrimaryKeys`** | **fails**, [fakesnow#373](https://github.com/tekumara/fakesnow/issues/373) |
+| batch insert (`executeBatch`), `JdbcTemplate.batchUpdate()` | works, needs 0.11.14 |
+| `DatabaseMetaData.getPrimaryKeys` | works, needs 0.11.14 |
+| **`TIMESTAMP_TZ` with an offset literal** | **fails**, see below |
 
-All three failures have fixes merged or in review upstream, so they should clear in a later fakesnow release: `getPrimaryKeys` is fixed on main, the offset literal is narrowed by [fakesnow#376](https://github.com/tekumara/fakesnow/pull/376) (a bare literal in `INSERT ... VALUES` still fails, there is no cast to rewrite from), and batch insert needs [fakesnow#383](https://github.com/tekumara/fakesnow/pull/383) and [#384](https://github.com/tekumara/fakesnow/pull/384).
+The remaining case is an offset literal written straight into `INSERT ... VALUES`, eg: `'2026-01-01 10:00:00 +09:00'`. A cast or `to_timestamp_tz()` around it works, since [fakesnow#376](https://github.com/tekumara/fakesnow/pull/376) rewrites those, but a bare literal has no cast to hang the rewrite off. It now fails with `100035 / 22007` rather than a 500, so the driver reports it immediately instead of retrying.
 
 Savepoints and `getGeneratedKeys` also fail, but that is **not** a fakesnow gap. The Snowflake driver reports `supportsSavepoints() == false` and `supportsGetGeneratedKeys() == false`, so they don't work against real Snowflake either. Hibernate's nested transactions (which use savepoints) are unavailable on Snowflake generally.
 
