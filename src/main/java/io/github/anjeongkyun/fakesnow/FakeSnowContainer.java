@@ -36,7 +36,7 @@ public class FakeSnowContainer extends JdbcDatabaseContainer<FakeSnowContainer> 
 
     private static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("ghcr.io/tekumara/fakesnow");
 
-    private static final String DEFAULT_TAG = "0.11.14";
+    private static final String DEFAULT_TAG = "0.11.15";
 
     private String databaseName = "db1";
 

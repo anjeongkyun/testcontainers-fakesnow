@@ -64,6 +64,45 @@ class CompatibilityProbe {
                 expect(n == 2, "merge affected " + n + ", expected 2 (1 inserted + 1 updated)");
             });
 
+            // sql is case insensitive, so the same merge has to work however it was typed
+            probe("MERGE with lowercase delete", () -> {
+                stmt.execute("create or replace table md (id int, v int)");
+                stmt.executeUpdate("insert into md values (1, 10), (2, 20)");
+                int n = stmt.executeUpdate(
+                    "merge into md t using (select 1 as id) s on t.id = s.id when matched then delete");
+                expect(n == 1, "merge deleted " + n + ", expected 1");
+            });
+
+            // preparing a statement must not run it, or a DDL creates objects and a MERGE moves
+            // rows before execute() is ever called
+            probe("prepareStatement has no side effects", () -> {
+                stmt.execute("CREATE OR REPLACE TABLE p (id INT, v INT)");
+                stmt.executeUpdate("INSERT INTO p VALUES (1, 10)");
+
+                // getMetaData is what makes the driver ask the server to describe the statement,
+                // preparing alone sends nothing
+                for (String sql : new String[] {
+                    "DROP TABLE p",
+                    "CREATE TABLE p_side_effect (id INT)",
+                    "MERGE INTO p t USING (SELECT 1 AS id, 99 AS v) s ON t.id = s.id "
+                        + "WHEN MATCHED THEN UPDATE SET t.v = s.v",
+                }) {
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.getMetaData();
+                    }
+                }
+
+                try (ResultSet rs = stmt.executeQuery("SELECT v FROM p")) {
+                    expect(rs.next(), "table p was dropped while preparing");
+                    expect(rs.getInt(1) == 10, "row was updated while preparing, v=" + rs.getInt(1));
+                }
+                try (ResultSet rs = stmt.executeQuery(
+                    "SELECT count(*) FROM information_schema.tables WHERE table_name = 'P_SIDE_EFFECT'")) {
+                    rs.next();
+                    expect(rs.getInt(1) == 0, "table was created while preparing");
+                }
+            });
+
             probe("recursive CTE", () -> {
                 try (ResultSet rs = stmt.executeQuery(
                     "WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 5) "

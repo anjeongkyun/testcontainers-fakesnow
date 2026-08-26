@@ -81,7 +81,7 @@ static void datasource(DynamicPropertyRegistry registry) {
 ## Configuration
 
 ```java
-new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.14")
+new FakeSnowContainer("ghcr.io/tekumara/fakesnow:0.11.15")
     .withDatabaseName("analytics")
     .withSchemaName("staging")
     .withAccount("acme")        // fakesnow accepts any account
@@ -97,9 +97,10 @@ A few things depend on the fakesnow version:
 
 - `executeUpdate`, and therefore `JdbcTemplate.update()`, needs **0.11.12 or newer**. Earlier versions rejected every DDL and DML statement sent through it.
 - `setTimestamp`, and therefore any ORM writing a timestamp, needs **0.11.13 or newer**. Earlier versions returned a 500 for every timestamp column, because the driver binds `setTimestamp` as `TIMESTAMP_LTZ` and only `TIMESTAMP_NTZ` was handled ([fakesnow#374](https://github.com/tekumara/fakesnow/issues/374)).
+- Preparing a statement needs **0.11.15 or newer**. Earlier versions ran it while describing, so `prepareStatement` on a DDL created or dropped the object, and on a `MERGE` moved rows, before `execute()` was ever called ([fakesnow#392](https://github.com/tekumara/fakesnow/pull/392)). 0.11.15 also fixes a `MERGE ... WHEN MATCHED THEN DELETE` that failed when written in lower case ([fakesnow#391](https://github.com/tekumara/fakesnow/pull/391)).
 - `executeBatch`, and therefore `JdbcTemplate.batchUpdate()`, needs **0.11.14 or newer**. The driver asks for the statement metadata first and then sends the rows as an array binding, neither of which was handled ([fakesnow#371](https://github.com/tekumara/fakesnow/issues/371)). It failed with a 500 that the driver retried 6 times before giving up.
 
-Measured against fakesnow 0.11.14 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
+Measured against fakesnow 0.11.15 with snowflake-jdbc 3.19.0 (`CompatibilityProbe` in the test sources reproduces this):
 
 | | |
 |---|---|
@@ -111,6 +112,8 @@ Measured against fakesnow 0.11.14 with snowflake-jdbc 3.19.0 (`CompatibilityProb
 | `setTimestamp`, `setDate` binding | works, needs 0.11.13 |
 | batch insert (`executeBatch`), `JdbcTemplate.batchUpdate()` | works, needs 0.11.14 |
 | `DatabaseMetaData.getPrimaryKeys` | works, needs 0.11.14 |
+| `prepareStatement` without side effects | works, needs 0.11.15 |
+| `MERGE` however it is cased | works, needs 0.11.15 |
 | **`TIMESTAMP_TZ` with an offset literal** | **fails**, see below |
 
 The remaining case is an offset literal written straight into `INSERT ... VALUES`, eg: `'2026-01-01 10:00:00 +09:00'`. A cast or `to_timestamp_tz()` around it works, since [fakesnow#376](https://github.com/tekumara/fakesnow/pull/376) rewrites those, but a bare literal has no cast to hang the rewrite off. It now fails with `100035 / 22007` rather than a 500, so the driver reports it immediately instead of retrying.
