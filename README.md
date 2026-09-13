@@ -32,7 +32,7 @@ The alternative that does keep fidelity is LocalStack's Snowflake emulator, whic
 Requires Java 17+ and a Docker environment Testcontainers can reach.
 
 ```kotlin
-testImplementation("io.github.anjeongkyun:testcontainers-fakesnow:0.1.0")
+testImplementation("io.github.anjeongkyun:testcontainers-fakesnow:0.1.2")
 testImplementation("net.snowflake:snowflake-jdbc:3.19.0")
 ```
 
@@ -40,7 +40,13 @@ testImplementation("net.snowflake:snowflake-jdbc:3.19.0")
 <dependency>
     <groupId>io.github.anjeongkyun</groupId>
     <artifactId>testcontainers-fakesnow</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
+    <scope>test</scope>
+</dependency>
+<dependency>
+    <groupId>net.snowflake</groupId>
+    <artifactId>snowflake-jdbc</artifactId>
+    <version>3.19.0</version>
     <scope>test</scope>
 </dependency>
 ```
